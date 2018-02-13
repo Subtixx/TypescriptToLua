@@ -723,7 +723,6 @@ var LuaTranspiler = /** @class */ (function () {
         return result;
     };
     LuaTranspiler.prototype.transpileVariableDeclaration = function (node) {
-        var _this = this;
         if (ts.isIdentifier(node.name)) {
             // Find variable identifier
             var identifier = node.name;
@@ -738,18 +737,27 @@ var LuaTranspiler = /** @class */ (function () {
         else if (ts.isArrayBindingPattern(node.name)) {
             // Destructuring type
             var value = this.transpileExpression(node.initializer);
-            var parentName_1 = "__destr" + this.genVarCounter;
-            this.genVarCounter++;
-            var result_2 = "local " + parentName_1 + " = " + value + "\n";
+            var result_2 = "local ";
+            var length_1 = node.name.elements.length;
             node.name.elements.forEach(function (elem, index) {
+                result_2 += "" + elem.name.escapedText;
+                if (index != length_1 - 1)
+                    result_2 += ",";
+            });
+            result_2 += " = " + value + "\n";
+            return result_2;
+            /*const value = this.transpileExpression(node.initializer);
+            let parentName = `__destr${this.genVarCounter}`;
+            this.genVarCounter++;
+            let result = `local ${parentName} = ${value}\n`;
+            node.name.elements.forEach((elem: ts.BindingElement, index: number) => {
                 if (!elem.dotDotDotToken) {
-                    result_2 += _this.indent + ("local " + elem.name.escapedText + " = " + parentName_1 + "[" + (index + 1) + "]\n");
-                }
-                else {
-                    result_2 += _this.indent + ("local " + elem.name.escapedText + " = TS_slice(" + parentName_1 + ", " + index + ")\n");
+                    result += this.indent + `local ${(<ts.Identifier>elem.name).escapedText} = ${parentName}[${index + 1}]\n`;
+                } else {
+                    result += this.indent + `local ${(<ts.Identifier>elem.name).escapedText} = TS_slice(${parentName}, ${index})\n`;
                 }
             });
-            return result_2;
+            return result;*/
         }
         else {
             throw new TranspileError("Unsupported variable declaration type " + TSHelper_1.TSHelper.enumName(node.name.kind, ts.SyntaxKind), node);

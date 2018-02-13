@@ -805,6 +805,17 @@ export class LuaTranspiler {
         } else if (ts.isArrayBindingPattern(node.name)) {
             // Destructuring type
             const value = this.transpileExpression(node.initializer);
+            let result = `local `;
+            let length = node.name.elements.length;
+            node.name.elements.forEach((elem: ts.BindingElement, index: number) => {
+                result += `${(<ts.Identifier>elem.name).escapedText}`;
+                if(index != length-1)
+                    result += ",";
+            });
+            result += " = " + value + "\n";
+            return result;
+            
+            /*const value = this.transpileExpression(node.initializer);
             let parentName = `__destr${this.genVarCounter}`;
             this.genVarCounter++;
             let result = `local ${parentName} = ${value}\n`;
@@ -815,7 +826,7 @@ export class LuaTranspiler {
                     result += this.indent + `local ${(<ts.Identifier>elem.name).escapedText} = TS_slice(${parentName}, ${index})\n`;
                 }
             });
-            return result;
+            return result;*/
         } else {
             throw new TranspileError("Unsupported variable declaration type " + tsEx.enumName(node.name.kind, ts.SyntaxKind), node);
         }
