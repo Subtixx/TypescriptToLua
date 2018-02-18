@@ -411,9 +411,16 @@ var LuaTranspiler = /** @class */ (function () {
             case ts.SyntaxKind.AsExpression:
                 // Also ignore as casts
                 return this.transpileExpression(node.expression);
+            case ts.SyntaxKind.TypeOfExpression:
+                return this.transpileTypeOfExpression(node);
             default:
                 throw new TranspileError("Unsupported expression kind: " + TSHelper_1.TSHelper.enumName(node.kind, ts.SyntaxKind), node);
         }
+    };
+    LuaTranspiler.prototype.transpileTypeOfExpression = function (node) {
+        // This produces type((name))??
+        var name = this.transpileExpression(node.expression);
+        return "type(" + name + ")";
     };
     LuaTranspiler.prototype.transpileBinaryExpression = function (node, brackets) {
         // Transpile operands
@@ -545,6 +552,11 @@ var LuaTranspiler = /** @class */ (function () {
             // Include context parameter if present
             var callPath_1 = (expType && expType.symbol) ? expType.symbol.name + "." + node.expression.name.escapedText : this.transpileExpression(node.expression);
             var params_2 = this.transpileArguments(node.arguments, node.expression.expression);
+            //? Workaround: MTA.addEventHandler(MTA, args) to addEventHandler(args)!
+            if (TSHelper_1.TSHelper.isPhantom(expType, this.checker)) {
+                var paramsContextFree = this.transpileArguments(node.arguments);
+                return node.expression.name.escapedText + "(" + paramsContextFree + ")";
+            }
             return callPath_1 + "(" + params_2 + ")";
         }
         // Handle super calls properly

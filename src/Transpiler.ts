@@ -452,9 +452,17 @@ export class LuaTranspiler {
             case ts.SyntaxKind.AsExpression:
                 // Also ignore as casts
                 return this.transpileExpression((<ts.AsExpression>node).expression);
+            case ts.SyntaxKind.TypeOfExpression:
+                return this.transpileTypeOfExpression(<ts.TypeOfExpression>node);
             default:
                 throw new TranspileError("Unsupported expression kind: " + tsEx.enumName(node.kind, ts.SyntaxKind), node);
         }
+    }
+
+    transpileTypeOfExpression(node: ts.TypeOfExpression): string {
+        // This produces type((name))??
+        const name = this.transpileExpression(node.expression);
+        return `type(${name})`;
     }
 
     transpileBinaryExpression(node: ts.BinaryExpression, brackets?: boolean): string {
@@ -594,11 +602,18 @@ export class LuaTranspiler {
                 const params = this.transpileArguments(node.arguments);
                 return this.transpileMathExpression(node.expression.name) + `(${params})`;
             }
-
+            
             // Include context parameter if present
             let callPath = (expType && expType.symbol) ? `${expType.symbol.name}.${node.expression.name.escapedText}` : this.transpileExpression(node.expression);
             let params = this.transpileArguments(node.arguments, node.expression.expression);
-            
+
+            //? Workaround: MTA.addEventHandler(MTA, args) to addEventHandler(args)!
+            if (tsEx.isPhantom(expType, this.checker))
+            {
+                let paramsContextFree = this.transpileArguments(node.arguments);
+                return `${node.expression.name.escapedText}(${paramsContextFree})`;
+            }
+
             return `${callPath}(${params})`;
         }
 
@@ -809,12 +824,12 @@ export class LuaTranspiler {
             let length = node.name.elements.length;
             node.name.elements.forEach((elem: ts.BindingElement, index: number) => {
                 result += `${(<ts.Identifier>elem.name).escapedText}`;
-                if(index != length-1)
+                if (index != length - 1)
                     result += ",";
             });
             result += " = " + value + "\n";
             return result;
-            
+
             /*const value = this.transpileExpression(node.initializer);
             let parentName = `__destr${this.genVarCounter}`;
             this.genVarCounter++;
