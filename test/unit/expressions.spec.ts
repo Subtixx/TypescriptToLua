@@ -1,9 +1,9 @@
 import { Expect, Test, TestCase } from "alsatian";
 
 import * as ts from "typescript";
-import {LuaTranspiler, TranspileError} from "../../dist/Transpiler";
+import { LuaTranspiler, TranspileError } from "../../dist/Transpiler";
 
-const dummyChecker = {getTypeAtLocation: function() {return {};}}
+const dummyChecker = { getTypeAtLocation: function () { return {}; } }
 function transpileString(str: string): string {
     const file = ts.createSourceFile("", str, ts.ScriptTarget.Latest);
     const result = LuaTranspiler.transpileSourceFile(file, dummyChecker, false);
@@ -39,7 +39,15 @@ export class ExpressionTests {
     @TestCase("a*=b", "a=a*b")
     @TestCase("a/=b", "a=a/b")
     @TestCase("a&b", "bit.band(a,b)")
+    @TestCase("a&=b", "a=bit.band(a,b)")
     @TestCase("a|b", "bit.bor(a,b)")
+    @TestCase("a|=b", "a=bit.bor(a,b)")
+    @TestCase("a<<b", "bit.lshift(a,b)")
+    @TestCase("a<<=b", "a=bit.lshift(a,b)")
+    @TestCase("a>>b", "bit.arshift(a,b)")
+    @TestCase("a>>=b", "a=bit.arshift(a,b)")
+    @TestCase("a>>>b", "bit.rshift(a,b)")
+    @TestCase("a>>>=b", "a=bit.rshift(a,b)")
     @Test("Binary expressions overridden operators")
     public binaryOperatorOverride(input: string, lua: string) {
         Expect(transpileString(input)).toBe(lua);

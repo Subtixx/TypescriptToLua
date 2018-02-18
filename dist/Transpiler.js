@@ -450,8 +450,32 @@ var LuaTranspiler = /** @class */ (function () {
             case ts.SyntaxKind.AmpersandToken:
                 result = "bit.band(" + lhs + "," + rhs + ")";
                 break;
+            case ts.SyntaxKind.AmpersandEqualsToken:
+                result = lhs + "=bit.band(" + lhs + "," + rhs + ")";
+                break;
             case ts.SyntaxKind.BarToken:
                 result = "bit.bor(" + lhs + "," + rhs + ")";
+                break;
+            case ts.SyntaxKind.BarEqualsToken:
+                result = lhs + "=bit.bor(" + lhs + "," + rhs + ")";
+                break;
+            case ts.SyntaxKind.LessThanLessThanToken:
+                result = "bit.lshift(" + lhs + "," + rhs + ")";
+                break;
+            case ts.SyntaxKind.LessThanLessThanEqualsToken:
+                result = lhs + "=bit.lshift(" + lhs + "," + rhs + ")";
+                break;
+            case ts.SyntaxKind.GreaterThanGreaterThanToken:
+                result = "bit.arshift(" + lhs + "," + rhs + ")";
+                break;
+            case ts.SyntaxKind.GreaterThanGreaterThanEqualsToken:
+                result = lhs + "=bit.arshift(" + lhs + "," + rhs + ")";
+                break;
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
+                result = "bit.rshift(" + lhs + "," + rhs + ")";
+                break;
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
+                result = lhs + "=bit.rshift(" + lhs + "," + rhs + ")";
                 break;
             case ts.SyntaxKind.PlusToken:
                 // Replace string + with ..
@@ -596,6 +620,21 @@ var LuaTranspiler = /** @class */ (function () {
                 throw new TranspileError("Unsupported string function: " + expression.name.escapedText, node);
         }
     };
+    // Transpile a String._ property
+    LuaTranspiler.prototype.transpileStringExpression = function (identifier) {
+        var translation = {
+            fromCharCode: "string.char",
+            fromCodePoint: "utf8.char"
+        };
+        // TODO at check if compiler options is LUA 5.3
+        // should throw an exception if codepoint is used sub 5.3
+        if (translation[identifier.escapedText]) {
+            return "" + translation[identifier.escapedText];
+        }
+        else {
+            throw new TranspileError("Unsupported string property " + identifier.escapedText + ".", identifier);
+        }
+    };
     LuaTranspiler.prototype.transpileArrayCallExpression = function (node) {
         var expression = node.expression;
         var params = this.transpileArguments(node.arguments);
@@ -657,6 +696,9 @@ var LuaTranspiler = /** @class */ (function () {
         // Catch math expressions
         if (ts.isIdentifier(node.expression) && node.expression.escapedText == "Math") {
             return this.transpileMathExpression(node.name);
+        }
+        if (TSHelper_1.TSHelper.isPhantom(type, this.checker)) {
+            return "" + property;
         }
         var path = this.transpileExpression(node.expression);
         return path + "." + property;

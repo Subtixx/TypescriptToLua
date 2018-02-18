@@ -494,8 +494,32 @@ export class LuaTranspiler {
             case ts.SyntaxKind.AmpersandToken:
                 result = `bit.band(${lhs},${rhs})`;
                 break;
+            case ts.SyntaxKind.AmpersandEqualsToken:
+                result = `${lhs}=bit.band(${lhs},${rhs})`;
+                break;
             case ts.SyntaxKind.BarToken:
                 result = `bit.bor(${lhs},${rhs})`;
+                break;
+            case ts.SyntaxKind.BarEqualsToken:
+                result = `${lhs}=bit.bor(${lhs},${rhs})`;
+                break;
+            case ts.SyntaxKind.LessThanLessThanToken:
+                result = `bit.lshift(${lhs},${rhs})`;
+                break;
+            case ts.SyntaxKind.LessThanLessThanEqualsToken:
+                result = `${lhs}=bit.lshift(${lhs},${rhs})`;
+                break;
+            case ts.SyntaxKind.GreaterThanGreaterThanToken:
+                result = `bit.arshift(${lhs},${rhs})`;
+                break;
+            case ts.SyntaxKind.GreaterThanGreaterThanEqualsToken:
+                result = `${lhs}=bit.arshift(${lhs},${rhs})`;
+                break;
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
+                result = `bit.rshift(${lhs},${rhs})`;
+                break;
+            case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
+                result = `${lhs}=bit.rshift(${lhs},${rhs})`;
                 break;
             case ts.SyntaxKind.PlusToken:
                 // Replace string + with ..
@@ -602,14 +626,13 @@ export class LuaTranspiler {
                 const params = this.transpileArguments(node.arguments);
                 return this.transpileMathExpression(node.expression.name) + `(${params})`;
             }
-            
+
             // Include context parameter if present
             let callPath = (expType && expType.symbol) ? `${expType.symbol.name}.${node.expression.name.escapedText}` : this.transpileExpression(node.expression);
             let params = this.transpileArguments(node.arguments, node.expression.expression);
 
             //? Workaround: MTA.addEventHandler(MTA, args) to addEventHandler(args)!
-            if (tsEx.isPhantom(expType, this.checker))
-            {
+            if (tsEx.isPhantom(expType, this.checker)) {
                 let paramsContextFree = this.transpileArguments(node.arguments);
                 return `${node.expression.name.escapedText}(${paramsContextFree})`;
             }
@@ -652,6 +675,23 @@ export class LuaTranspiler {
                 }
             default:
                 throw new TranspileError("Unsupported string function: " + expression.name.escapedText, node);
+        }
+    }
+
+    // Transpile a String._ property
+    transpileStringExpression(identifier: ts.Identifier): string {
+        const translation = {
+            fromCharCode: "string.char",
+            fromCodePoint: "utf8.char"
+        };
+
+        // TODO at check if compiler options is LUA 5.3
+        // should throw an exception if codepoint is used sub 5.3
+
+        if (translation[<string>identifier.escapedText]) {
+            return `${translation[<string>identifier.escapedText]}`;
+        } else {
+            throw new TranspileError(`Unsupported string property ${identifier.escapedText}.`, identifier);
         }
     }
 
@@ -723,6 +763,11 @@ export class LuaTranspiler {
         // Catch math expressions
         if (ts.isIdentifier(node.expression) && node.expression.escapedText == "Math") {
             return this.transpileMathExpression(node.name);
+        }
+
+        if(tsEx.isPhantom(type, this.checker))
+        {
+            return `${property}`;
         }
 
         let path = this.transpileExpression(node.expression);
